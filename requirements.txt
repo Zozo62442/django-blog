@@ -12,3 +12,4 @@ platformdirs==4.3.8
 setuptools==80.9.0
 sqlparse==0.5.3
 typing_extensions==4.14.0
+summernote~=0.8.20.0
