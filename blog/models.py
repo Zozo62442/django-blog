@@ -29,7 +29,7 @@ class Comment(models.Model):
     body = models.TextField()
     approved = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
-    challenge = models.slugField('this_is_a_slug') #models.SlugField(default=3.0)
+    challenge = models.SlugField('this_is_a_slug') #models.SlugField(default=3.0)
 
     class Meta:
         odering = ["-created_on"]
