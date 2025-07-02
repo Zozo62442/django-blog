@@ -1,6 +1,6 @@
-
 {% extends 'base.html' %} {% block content %}
 {% load static %}
+{% load crispy_forms_tags %}
 
 <div class="masthead">
     <div class="container">
@@ -30,48 +30,402 @@
             </div>
         </div>
     </div>
-<!-- Displaying count of comments -->
-  <div class="row">
-    <div class="col-12">
-      <strong class="text-secondary">
-        <i class="far fa-comments"></i> {{ comment_count }}
-      </strong>
+    <!-- Displaying count of comments -->
+    <div class="row">
+        <div class="col-12">
+            <strong class="text-secondary">
+                <i class="far fa-comments"></i> {{ comment_count }}
+            </strong>
+        </div>
+        <div class="col-12">
+            <hr>
+        </div>
     </div>
-    <div class="col-12">
-      <hr>
-    </div>
-  </div>
-  <!-- Displaying Comments -->
-  <div class="row">
-    <div class="col-md-8 card mb-4  mt-3 ">
-      <h3>Comments:</h3>
-      <div class="card-body">
-        <!-- We want a for loop inside the empty control tags
+    <!-- Displaying Comments -->
+    <div class="row">
+        <div class="col-md-8 card mb-4  mt-3 ">
+            <h3>Comments:</h3>
+            <div class="card-body">
+                <!-- We want a for loop inside the empty control tags
           to iterate through each comment in comments -->
-        {% for comment in comments %}
-        <div class="p-2 comments
+                {% for comment in comments %}
+                <div class="p-2 comments
           {% if not comment.approved and comment.author == user %}
           faded{% elif not comment.approved %} d-none{% endif %}">
-          <p class="font-weight-bold">
-            {{ comment.author }}
-            <span class="font-weight-normal">
-              {{ comment.created_on }}
-            </span> wrote:
-          </p>
-          <div id="comment{{ comment.id }}">
-            {{ comment.body | linebreaks }}
-          </div>
-          {% if not comment.approved and comment.author == user %}
-          <p class="approval">
-            This comment is awaiting approval
-          </p>
-          {% endif %}
+                    <p class="font-weight-bold">
+                        {{ comment.author }}
+                        <span class="font-weight-normal">
+                            {{ comment.created_on }}
+                        </span> wrote:
+                    </p>
+                    <div id="comment{{ comment.id }}">
+                        {{ comment.body | linebreaks }}
+                    </div>
+                    {% if not comment.approved and comment.author == user %}
+                    <p class="approval">
+                        This comment is awaiting approval
+                    </p>
+                    {% endif %}
+                    {% if user.is_authenticated and comment.author == user %}
+                    <button class="btn btn-delete" comment_id="{{ comment.id }}">Delete</button>
+                    <button class="btn btn-edit" comment_id="{{ comment.id }}">Edit</button>
+                    {% endif %}
+                </div>
+                <!-- Our for loop ends here -->
+                {% endfor %}
+            </div>
         </div>
-        <!-- Our for loop ends here -->
-        {% endfor %}
+        <!-- Creating New Comments -->
+        <div class="col-md-4 card mb-4 mt-3">
+            <div class="card-body">
+                {% if user.is_authenticated %}
+                <h3>Leave a comment:</h3>
+                <p>Posting as: {{ user.username }}</p>
+                <form id="commentForm" method="post" style="margin-top: 1.3em;">
+                    {{ comment_form | crispy }}
+                    {% csrf_token %}
+                    <button id="submitButton" type="submit" class="btn btn-signup btn-lg">Submit</button>
+                </form>
+                {% else %}
+                <p>Log in to leave a comment</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Delete comment?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete your comment?
+                This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a id="deleteConfirm" href="#" class="btn
+          btn-danger">Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+Skip to main content
+Code Institute Home PageCodeInstitute: FSD101_WTS
+Developing with Django
+ Dashboard for:zoe.rotterr@gmail.com 
+Code Institute Logo
+Programme Overview
+Student Support
+Slack
+I Think Therefore I Blog  Views Part 3  Editing and deleting records
+Search in Module
+ Previous
+Next 
+video Accepting POST requests 
+other POSTing and writing to the database 
+other Deeper dive into relationships 
+other Conditional comments 
+other Creating a Django form 
+other Handling a POST request 
+other Challenge: Create the Collaboration Request form 
+other Challenge: Handle the form POST request 
+other Editing and deleting records 
+other The edit and delete views 
+other Handling edit and delete buttons with JavaScript 
+video What just happened 
+problem Views part 3: Quiz 
+Editing and deleting records
+ Bookmark this page
+Approximate topic time: 30 minutes
+
+What is it?
+
+A view to reload or refresh an existing template.
+
+ 
+What does it do?
+
+Allows a form to be populated with an existing comment.  
+
+ 
+Why do I need it?
+
+To do the update and delete parts of CRUD capabilities. 
+
+
+Editing and deleting records
+In these text-based steps, we will extend the CRUD capabilities of the project to include the update and deletion of comments. This code will involve new views that use existing templates. Also, we will see how to refresh and reload an existing view.
+
+Giving the regular user update and delete permissions on the database means we must implement defensive programming to ensure malicious users cannot compromise database integrity.
+
+This topic will integrate some JavaScript code into the project for URL construction.
+
+Follow the steps below.
+
+Prerequisites
+1. Move the Modify or delete comment on a post user story into In Progress on the Kanban board. The code in this topic will meet the two acceptance criteria in this user story.
+
+AC1 Given a logged-in user, they can modify their comment.
+AC2 Given a logged-in user, they can delete their comment.
+Add to in progress.
+View, URL and button to edit a comment
+2. Open the blog/views.py file and add the imports needed for this topic.
+
+from django.shortcuts import render, get_object_or_404, reverse
+from django.views import generic
+from django.contrib import messages
+from django.http import HttpResponseRedirect
+from .models import Post, Comment
+from .forms import CommentForm
+Import for new views
+3. Within the blog/views.py file, add a new view named comment_edit at the bottom of the file.
+
+Note: This view returns you to the post webpage after you've edited the comment. This return is done with a HttpResponseRedirect and reverse to refresh the post_detail view.
+
+def comment_edit(request, slug, comment_id):
+    """
+    view to edit comments
+    """
+    if request.method == "POST":
+
+        queryset = Post.objects.filter(status=1)
+        post = get_object_or_404(queryset, slug=slug)
+        comment = get_object_or_404(Comment, pk=comment_id)
+        comment_form = CommentForm(data=request.POST, instance=comment)
+
+        if comment_form.is_valid() and comment.author == request.user:
+            comment = comment_form.save(commit=False)
+            comment.post = post
+            comment.approved = False
+            comment.save()
+            messages.add_message(request, messages.SUCCESS, 'Comment Updated!')
+        else:
+            messages.add_message(request, messages.ERROR, 'Error updating comment!')
+
+    return HttpResponseRedirect(reverse('post_detail', args=[slug]))
+View for editing comments
+4. In the blog/urls.py file, create a URL to point to this new view.
+
+    path('<slug:slug>/', views.post_detail, name='post_detail'),
+    path('<slug:slug>/edit_comment/<int:comment_id>',
+         views.comment_edit, name='comment_edit'),
+]
+Urlpattern for editing comments
+5. Now we need an Edit button in the post_detail.html template within the comments loop below 'This comment is awaiting approval'. This button should only be visible to users who are:
+
+Logged in.
+The author of the comment.
+  <p class="approval">This comment is awaiting approval</p>
+  {% endif %}
+   {% if user.is_authenticated and comment.author == user %}
+  <button class="btn btn-edit"
+    comment_id="{{ comment.id }}">Edit</button>
+  {% endif %}
+</div>
+Note: This button is non-functional at the moment. We will need to add some JavaScript to construct the edit comment URL.
+
+Add in an edit button
+Utilise JavaScript to construct the edit comment URL
+6. First delete the existing static/js/script.js file.
+
+Delete the js script
+7. Replace it with a new static/js/comments.js file.
+
+Add the comments js file
+8. Now add JavaScript code to the static/js/comments.js file, to dynamically construct the edit URL when the Edit button is clicked.
+
+const editButtons = document.getElementsByClassName("btn-edit");
+const commentText = document.getElementById("id_body");
+const commentForm = document.getElementById("commentForm");
+const submitButton = document.getElementById("submitButton");
+
+/**
+* Initializes edit functionality for the provided edit buttons.
+* 
+* For each button in the `editButtons` collection:
+* - Retrieves the associated comment's ID upon click.
+* - Fetches the content of the corresponding comment.
+* - Populates the `commentText` input/textarea with the comment's content for editing.
+* - Updates the submit button's text to "Update".
+* - Sets the form's action attribute to the `edit_comment/{commentId}` endpoint.
+*/
+for (let button of editButtons) {
+  button.addEventListener("click", (e) => {
+    let commentId = e.target.getAttribute("comment_id");
+    let commentContent = document.getElementById(`comment${commentId}`).innerText;
+    commentText.value = commentContent;
+    submitButton.innerText = "Update";
+    commentForm.setAttribute("action", `edit_comment/${commentId}`);
+  });
+}
+Add the comments js file code
+9. At the bottom of the post_detail template add a DTL block extras containing the script linking to the static/js/comments.js file.
+
+Note: We've named it extras to differentiate it from the content
+
+{% endblock content %}
+
+{% block extras %}
+<script src="{% static 'js/comments.js' %}"></script>
+{% endblock %}
+Add the DTL block for the comments js file
+10. Now add a block with the same name to the base.html file at the end of the body element so that the HTML script element can be loaded. You should delete the original script.js link if you haven't done so already.
+
+    </script>
+
+    {% block extras %}
+    {% endblock %}
+</body>
+Add the DTL block for the comments js file
+11. Now test the new functionality by running the Django server and opening the browser.
+
+Open the app
+12. Log in as a user who has previously commented on a post.
+
+Open the login page
+13. Click on a post where you have previously commented.
+
+Click Edit to edit the comment.
+Edit the text in the input textarea.
+Click Update to save your changes.
+Note: You are returned to the same browser URL or webpage as you were on before pressing Edit.
+
+Edit an existing comment
+Delete a comment
+14. But what if rather than edit a comment you want to delete it?
+
+Open the blog/views.py file and add a comment_delete view below the edit one.
+return HttpResponseRedirect(reverse('post_detail', args=[slug]))
+
+
+def comment_delete(request, slug, comment_id):
+    """
+    view to delete comment
+    """
+    queryset = Post.objects.filter(status=1)
+    post = get_object_or_404(queryset, slug=slug)
+    comment = get_object_or_404(Comment, pk=comment_id)
+
+    if comment.author == request.user:
+        comment.delete()
+        messages.add_message(request, messages.SUCCESS, 'Comment deleted!')
+    else:
+        messages.add_message(request, messages.ERROR, 'You can only delete your own comments!')
+
+    return HttpResponseRedirect(reverse('post_detail', args=[slug]))
+Delete view for an existing comment
+15. Add a urlpattern for your delete_comment view in the blog/urls.py file.
+
+    path('<slug:slug>/edit_comment/<int:comment_id>',
+         views.comment_edit, name='comment_edit'),
+    path('<slug:slug>/delete_comment/<int:comment_id>',
+         views.comment_delete, name='comment_delete'),
+]
+Delete url for an existing comment
+16. Now, we need a Delete button in the post_detail.html template above the Edit button. This button should only be visible to users who are:
+
+Logged in.
+The author of the comment.
+  {% if user.is_authenticated and comment.author == user %}
+  <button class="btn btn-delete"
+    comment_id="{{ comment.id }}">Delete</button>
+  <button class="btn btn-edit"
+    comment_id="{{ comment.id }}">Edit</button>
+  {% endif %}
+Delete button for an existing comment
+17. It's bad UX to have a Delete button with no confirmation step. Therefore, we will add a modal in the post_detail.html template that opens on clicking Delete, stating, "Are you sure you want to delete your comment? This action cannot be undone."
+
+Add the following HTML to the end of the block content.
+</div>
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1"
+  aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"
+          id="deleteModalLabel">Delete comment?</h5>
+        <button type="button" class="btn-close"
+          data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete your comment?
+        This action cannot be undone.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary"
+          data-bs-dismiss="modal">Close</button>
+        <a id="deleteConfirm" href="#" class="btn
+          btn-danger">Delete</a>
       </div>
     </div>
   </div>
 </div>
+<div>
+Delete confirmation modal for an existing comment
+18. Unlike the edit comment example, you now have a Delete button to open the modal and another Delete button in the modal to construct the delete_comment URL dynamically.
+
+Open the static/js/comments.js file and add the constant and variables to get the modal and two Delete button elements.
+const submitButton = document.getElementById("submitButton");
+
+const deleteModal = new bootstrap.Modal(document.getElementById("deleteModal"));
+const deleteButtons = document.getElementsByClassName("btn-delete");
+const deleteConfirm = document.getElementById("deleteConfirm");
+Get modal and button elements
+19. Now, at the bottom of the static/js/comments.js file, add the code below to construct the delete_comment URL dynamically.
+
+}
+
+/**
+* Initializes deletion functionality for the provided delete buttons.
+* 
+* For each button in the `deleteButtons` collection:
+* - Retrieves the associated comment's ID upon click.
+* - Updates the `deleteConfirm` link's href to point to the 
+* deletion endpoint for the specific comment.
+* - Displays a confirmation modal (`deleteModal`) to prompt 
+* the user for confirmation before deletion.
+*/
+for (let button of deleteButtons) {
+  button.addEventListener("click", (e) => {
+    let commentId = e.target.getAttribute("comment_id");
+    deleteConfirm.href = `delete_comment/${commentId}`;
+    deleteModal.show();
+  });
+}
+Dynamically construct delete comment URL
+20. Now test the new functionality by running the Django server and opening the browser.
+
+Open the app
+21. Log in as a user who has previously commented on a post.
+
+Open the login page
+22. Click on a post where you have previously commented and click the Delete button below the comment.
+
+Click delete
+23. Clicking Delete has opened a confirmation modal. If your user had clicked Delete in error, they have the opportunity to click Close. However, let's verify the JavaScript, URL and view by clicking Delete.
+
+Click delete
+24. A message will appear from Django messages to confirm the comment has been deleted from the database.
+
+You can check your code against the source code here.
+
+Comment is deleted
+Deployment
+Follow up
+This unit left me feeling:
+GreatGoodOKBelow averageBad
+ Previous
+Next 
+AboutTerms and ConditionsPrivacy PolicyPlagiarism PolicyFAQ© 2025 Code Institute.
 
 {% endblock content %}
+
+{% block extras %}
+<script src="{% static 'js/comments.js' %}"></script>
+{% endblock %}

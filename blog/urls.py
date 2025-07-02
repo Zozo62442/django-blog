@@ -2,8 +2,8 @@ from . import views
 from django.urls import path
 
 urlpatterns = [
-    path("about/", include("about.urls"), name="about-urls"),
-    path('admin/', admin.site.urls),
-    path('summernote/', include('django_summernote.urls')),
-    path("", include("blog.urls"), name="blog-urls"),
+    path('', views.PostList.as_view(), name='home'),
+    path('<slug:slug>/', views.post_detail, name='post_detail'),
+    path('<slug:slug>/delete_comment/<int:comment_id>',
+         views.comment_delete, name='comment_delete'),
 ]
